@@ -1,0 +1,11 @@
+# Caché de respuestas crudas de la API del INE (se regenera con run_all.py)
+data/raw/
+
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+.venv/
+venv/
+.env
+.DS_Store
+Thumbs.db
