@@ -157,8 +157,8 @@ const yearTickLabel = v => { const d = new Date(v); return d.getUTCMonth() === 0
 
 // ─── Selector global de periodo ─────────────────────────────────────────────
 const RANGES = {
-  all: Date.UTC(2013, 6, 1), "2019": Date.UTC(2019, 0, 1),
-  XIV: D.meta.xiv_ms - 120 * DAY, XV: D.meta.xv_ms - 200 * DAY,
+  all: Date.UTC(2013, 0, 1), "2019": Date.UTC(2019, 0, 1),
+  XIV: Date.UTC(2020, 0, 1), XV: Date.UTC(2023, 10, 1),
 };
 let rangeMin = RANGES.all;
 const TS = [];
@@ -188,7 +188,7 @@ function ts(id, sets, o = {}) {
       backgroundColor: s.bg || (isBar ? (ctx => ((ctx.raw && ctx.raw.y) || 0) >= 0 ? hexA(s.pos || color, 0.75) : hexA(s.neg || C.bad, 0.75)) : hexA(color, 0.15)),
       borderWidth: s.width ?? 2.2, borderDash: s.dash || [], pointRadius: s.points ? 2.6 : 0, pointHoverRadius: 4,
       pointBackgroundColor: color, tension: s.tension ?? 0.25, fill: s.fill || false, yAxisID: s.y || "y",
-      spanGaps: true, order: s.order ?? (isBar ? 2 : 1), hidden: !!s.hidden, borderRadius: isBar ? 2 : 0,
+      spanGaps: false, order: s.order ?? (isBar ? 2 : 1), hidden: !!s.hidden, borderRadius: isBar ? 2 : 0,
       barThickness: isBar ? "flex" : undefined, barPercentage: 0.9, categoryPercentage: 0.95,
     };
   });
@@ -199,7 +199,7 @@ function ts(id, sets, o = {}) {
     },
     y: { grid: { color: "rgba(255,255,255,0.06)" }, ticks: { callback: axisFmt(o.yDec ?? 0, o.ySuffix) }, ...(o.y || {}) },
   };
-  if (o.y2) scales.y2 = { position: "right", grid: { display: false }, ticks: { callback: axisFmt(o.y2Dec ?? 0, o.y2Suffix) }, ...o.y2 };
+  if (o.y2 || datasets.some(ds => ds.yAxisID === "y2")) scales.y2 = { position: "right", grid: { display: false }, ticks: { callback: axisFmt(o.y2Dec ?? 0, o.y2Suffix) }, ...o.y2 };
   const chart = new Chart(el, {
     type: "line",
     data: { datasets },
@@ -298,7 +298,8 @@ function renderHero() {
   const m = D.meta;
   $("heroMeta").innerHTML = [
     `Investidura <strong>16 nov 2023</strong>`, `Último dato <strong>${dlabel(Date.parse(m.last), "M")}</strong>`,
-    `<strong>${nf(m.n_series, 0)}</strong> series`, `<strong>${nf(m.n_obs, 0)}</strong> observaciones`,
+    `<strong>${nf(m.n_series, 0)}</strong> series INE`, `<strong>${nf(m.n_obs, 0)}</strong> observaciones INE`,
+    `<strong>${nf(D.europe.metadata.n_obs, 0)}</strong> observaciones Eurostat`,
     `<strong>${m.n_tables}</strong> tablas INE`, `Generado <strong>${m.generated}</strong>`,
   ].map(t => `<div class="chip">${t}</div>`).join("");
   const stats = [
@@ -327,8 +328,8 @@ function renderHero() {
 // ─── RESUMEN ────────────────────────────────────────────────────────────────
 function renderScorecard() {
   const blocks = [...new Set(D.kpis.map(k => k.block))];
-  $("kpiFilter").innerHTML = [`<button class="pill on" data-b="all">Todos</button>`,
-    ...blocks.map(b => `<button class="pill" data-b="${b}">${D.meta.blocks[b]}</button>`)].join("");
+  $("kpiFilter").innerHTML = [`<button type="button" class="pill on" aria-pressed="true" data-b="all">Todos</button>`,
+    ...blocks.map(b => `<button type="button" class="pill" aria-pressed="false" data-b="${b}">${D.meta.blocks[b]}</button>`)].join("");
   $("kpiGrid").innerHTML = D.kpis.map(k => {
     const [v, u] = kpiValue(k);
     const xiv = k.xiv_delta == null ? "" : `<div class="xiv">En la XIV: ${k.unit === "%" ? sgn(k.xiv_delta, 2) + " pp" : k.unit === "miles" ? sgn(k.xiv_delta, 0) + " mil" : sgn(k.xiv_delta, 0) + (k.unit === "€" ? " €" : "")}</div>`;
@@ -355,7 +356,7 @@ function renderScorecard() {
   });
   $("kpiFilter").addEventListener("click", e => {
     const b = e.target.closest("button"); if (!b) return;
-    document.querySelectorAll("#kpiFilter .pill").forEach(x => x.classList.toggle("on", x === b));
+    document.querySelectorAll("#kpiFilter .pill").forEach(x => { x.classList.toggle("on", x === b); x.setAttribute("aria-pressed", String(x === b)); });
     document.querySelectorAll("#kpiGrid .kpi").forEach(c => c.classList.toggle("hide", b.dataset.b !== "all" && c.dataset.b !== b.dataset.b));
   });
 
@@ -423,6 +424,8 @@ function renderEmpleo() {
 // ─── PRECIOS ────────────────────────────────────────────────────────────────
 function renderPrecios() {
   const s = D.s, P = D.precios;
+  $("ipcReading").textContent = `En ${K.ipc.latest_label}, el IPC general es del ${nf(K.ipc.latest)}% y la subyacente del ${nf(K.ipc_subyacente.latest)}%. ` +
+    `La diferencia es de ${sgn(K.ipc.latest - K.ipc_subyacente.latest)} pp. Las tasas por componentes no equivalen a sus contribuciones: para cuantificarlas hacen falta ponderaciones.`;
   ts("chIpc", [
     { label: "General", data: s.ipc, color: C.ink, width: 2.6 },
     { label: "Subyacente", data: s.ipc_subyacente, color: C.blue, width: 2.2 },
@@ -450,6 +453,43 @@ function renderPrecios() {
   $("heatIpc").innerHTML = html + "</div>";
 }
 
+// ─── EUROPA: mismos datos y fórmulas que el notebook ─────────────────────────
+function renderEuropa() {
+  const E = D.europe, es = E.rows.find(r => r.geo === "ES"), eu = E.rows.find(r => r.geo === "EU27_2020");
+  const ea = E.rows.find(r => r.geo === "EA20");
+  const month = dlabel(Date.parse(E.date + "-01T00:00:00Z"), "M");
+  const colors = { ES: C.red, EU27_2020: C.gold, EA20: C.sky, DE: C.blue, FR: C.good, IT: C.violet, PT: C.orange };
+  $("euKpis").innerHTML = [
+    [nf(es.annual) + "%", `España · IPCA general · ${month}`],
+    [sgn(es.gap_eu) + " pp", "España menos Unión Europea"],
+    [sgn(es.annual - ea.annual) + " pp", "España menos zona euro (20)"],
+    [sgn(es.cumulative) + "%", `Precios España · nov 2023 → ${month}`],
+  ].map(([n, l]) => `<div class="mini"><div class="n">${n}</div><div class="l">${l}</div></div>`).join("");
+  const relation = es.gap_eu > 0 ? "por encima de" : es.gap_eu < 0 ? "por debajo de" : "al mismo nivel que";
+  $("euReading").textContent = `En ${month}, la inflación armonizada de España es del ${nf(es.annual)}%, ${relation} la UE (${nf(eu.annual)}%). ` +
+    `Desde noviembre de 2023, los precios han variado un ${sgn(es.cumulative)}% en España y un ${sgn(eu.cumulative)}% en la UE: ` +
+    `una diferencia de ${sgn(es.cumulative - eu.cumulative)} puntos porcentuales. Son comparaciones descriptivas, sin atribución causal.`;
+  const sets = metric => Object.keys(E.names).map(g => ({label: E.names[g], data: E[metric][g], color: colors[g],
+    hidden: !["ES", "EU27_2020", "EA20"].includes(g), dash: g === "EU27_2020" ? [5, 3] : [], width: g === "ES" ? 2.8 : 2}));
+  const chart = ts("chEuRates", sets("rates"), { ySuffix: "%", tipSuffix: "%", lines: [{value: 2, label: "Objetivo BCE: IPCA general 2%", color: C.dim}] });
+  $("euMeasure").addEventListener("change", e => {
+    const metric = e.target.value;
+    chart.options.plugins.refLines.lines = metric === "rates" ? [{value: 2, label: "Objetivo BCE: IPCA general 2%", color: C.dim}] : [];
+    chart.data.datasets.forEach((ds, i) => { ds.$full = XY(E[metric][Object.keys(E.names)[i]]); });
+    applyRange(chart);
+  });
+  ts("chEuIndex", sets("index"), {yDec: 0, tipDec: 2, fixedMin: Date.UTC(2023, 10, 1), lines: [{value: 100, label: "Base 100", color: C.dim}]});
+  ts("chEuGap", ["EU27_2020", "EA20"].map(g => ({ label: "España − " + E.names[g], data: E.gaps[g], color: colors[g] })),
+    { yDec: 1, ySuffix: " pp", tipSuffix: " pp", lines: [{value: 0, label: "Misma inflación", color: C.dim}] });
+  $("euTableDate").textContent = `${month} · último mes común · cifras de la tabla independientes del filtro temporal`;
+  document.querySelector("#tableEurope tbody").innerHTML = [...E.rows].sort((a, b) => b.annual - a.annual).map(r =>
+    `<tr class="${r.geo === "ES" ? "es" : ""}"><th scope="row">${r.name}</th><td class="num">${nf(r.annual)}</td><td class="num">${sgn(r.monthly)}</td>` +
+    `<td class="num">${sgn(r.cumulative)}</td><td class="num">${sgn(r.gap_eu)}</td><td>${r.status || "Sin marca"}</td></tr>`).join("");
+  $("euProvenance").textContent = `Fuente: Eurostat · ${E.metadata.dataset} · ${nf(E.metadata.n_obs, 0)} observaciones. ` +
+    `Descarga: ${E.metadata.retrieved_utc.slice(0, 10)}. Índices oficiales 2025 = 100; acumulado = (índice final / índice nov 2023 − 1) × 100. ` +
+    `El gráfico acumulado mantiene su base y su periodo desde noviembre de 2023 al cambiar el filtro global.`;
+}
+
 // ─── SALARIOS ───────────────────────────────────────────────────────────────
 function renderSalarios() {
   const W = D.salarios;
@@ -460,8 +500,7 @@ function renderSalarios() {
   ], { yDec: 0, tipDec: 1, lines: [{ value: 100, color: "rgba(255,255,255,0.35)", dash: [2, 3] }] });
   const ln = last(W.nominal_idx)[1], li = last(W.ipc_idx)[1], lr = last(W.real_idx)[1];
   $("realNote").innerHTML = `Desde el inicio de la XV el salario nominal crece un <strong>${sgn(ln - 100, 1)}%</strong> y los precios un
-    <strong>${sgn(li - 100, 1)}%</strong>: el salario real varía un <strong>${sgn(lr - 100, 1)}%</strong>. Antes de 2023 la línea verde muestra la
-    pérdida de poder adquisitivo acumulada durante el episodio inflacionario.`;
+    <strong>${sgn(li - 100, 1)}%</strong>: el salario real varía un <strong>${sgn(lr - 100, 1)}%</strong>. Último periodo comparado: ${dlabel(last(W.real_idx)[0], "Q")}. La base 100 corresponde al inicio de la XV.`;
   ts("chRealYoy", [
     { label: "Salario real (pp)", data: W.real_yoy, type: "bar", color: C.good, pos: C.good, neg: C.bad },
     { label: "Salario nominal (%)", data: W.nominal_yoy, color: C.gold, width: 1.4 },
@@ -566,7 +605,7 @@ function renderBienestar() {
     { label: "AROPE", data: s.arope, color: C.red, width: 2.6, points: true },
     { label: "AROPE menores de 16", data: s.arope_infantil, color: C.orange, width: 1.8, points: true },
     { label: "Riesgo de pobreza", data: s.pobreza, color: C.gold, width: 2.2, points: true },
-    { label: "Carencia material severa", data: s.carencia_severa, color: C.blue, width: 1.8, points: true },
+    { label: "Carencia material y social severa", data: s.carencia_severa, color: C.blue, width: 1.8, points: true },
   ], { ySuffix: "%", tipSuffix: "%", y: { min: 0 } });
   ts("chGini", [
     { label: "Gini", data: s.gini, color: C.blue, width: 2.6, points: true },
@@ -648,7 +687,7 @@ function renderJusticia() {
   const peakI = J.ratios.ratio_edad_sexo.reduce((bi, v, i, a) => v > a[bi] ? i : bi, 0);
   $("ratioNote").innerHTML = `En ${J.last} la tasa bruta de los extranjeros es <strong>${nf(rb, 2)} veces</strong> la de los españoles. Ajustando por edad baja a
     <strong>${nf(ra, 2)}</strong> y por edad y sexo a <strong>${nf(ras, 2)}</strong>: el exceso pasa de +${nf((rb - 1) * 100, 0)}% a +${nf((ras - 1) * 100, 0)}%,
-    así que <strong>casi la mitad de la diferencia bruta es demográfica</strong>. El ratio ajustado ha bajado desde su máximo (${nf(J.ratios.ratio_edad_sexo[peakI], 2)} en ${yrs[peakI]})
+    el ajuste reduce un <strong>${nf((rb - ras) / (rb - 1) * 100, 0)}% del exceso del ratio bruto sobre 1</strong>. No identifica una causa. El ratio ajustado ha bajado desde su máximo (${nf(J.ratios.ratio_edad_sexo[peakI], 2)} en ${yrs[peakI]})
     mientras el peso de los extranjeros en la población crecía.`;
   $("ageSub").textContent = `% de la población adulta de cada nacionalidad · ${J.age_year}`;
   cat("chCrAge", J.bands, [
@@ -677,8 +716,7 @@ function renderJusticia() {
   cat("chCrMen", MS[ky[0]].map(p => p[0]), ky.map(k => ({ label: k, data: MS[k].map(p => p[1]), color: mc[k] || C.ink, width: k === "Total" ? 1.4 : 2.4, dash: k === "Total" ? [4, 3] : [] })),
     { tipDec: 1, tipSuffix: "%", ySuffix: "%", y: { min: 70, max: 95 } });
 
-  $("crimeVerdict").innerHTML = `<strong>Conclusión del bloque.</strong> Los datos muestran una <strong>sobrerrepresentación real pero mucho menor</strong> de lo que
-    sugieren las cifras brutas (${nf(ras, 2)}× ajustado frente a ${nf(rb, 2)}× bruto) y <strong>decreciente</strong> en la última década, pese al fuerte aumento de la
+  $("crimeVerdict").innerHTML = `<strong>Conclusión del bloque.</strong> Los datos muestran una <strong>tasa registrada mayor para extranjeros</strong>, con una diferencia menor que la sugerida por las cifras brutas (${nf(ras, 2)}× ajustado frente a ${nf(rb, 2)}× bruto) y <strong>decreciente</strong> en la última década, pese al fuerte aumento de la
     población extranjera. La diferencia residual no puede atribuirse a la nacionalidad en sí: incluye a no residentes, posibles sesgos de detección y
     enjuiciamiento y diferencias socioeconómicas. Cualquier uso de estas cifras en el debate público debería, como mínimo, <strong>ajustar por edad y explicitar
     que son condenas</strong>, no delitos.`;
@@ -731,16 +769,16 @@ function renderTerritorio() {
   const cellBg = (k, v) => v == null ? "" : `background:${relColor(k, v, 0.04, 0.32)}`;
   const thead = document.querySelector("#tableCcaa thead"), tbody = document.querySelector("#tableCcaa tbody");
   const renderTable = () => {
-    thead.innerHTML = `<tr><th class="sortable ${sortKey === "name" ? "sorted" : ""}" data-k="name">Comunidad</th>${keys.map(k =>
-      `<th class="num sortable ${sortKey === k ? "sorted" : ""}" data-k="${k}">${METRICS[k].label.replace(/ \(.*\)/, "")}${sortKey === k ? (sortDir > 0 ? " ↓" : " ↑") : ""}</th>`).join("")}</tr>`;
-    const sorted = [...regions].sort((a, b) => sortKey === "name" ? a.name.localeCompare(b.name) * sortDir : ((b[sortKey] ?? -1e9) - (a[sortKey] ?? -1e9)) * sortDir);
+    thead.innerHTML = `<tr><th class="sortable ${sortKey === "name" ? "sorted" : ""}" scope="col" aria-sort="${sortKey === "name" ? (sortDir > 0 ? "ascending" : "descending") : "none"}"><button type="button" class="sort-button" data-k="name">Comunidad${sortKey === "name" ? (sortDir > 0 ? " ↑" : " ↓") : " ↕"}</button></th>${keys.map(k =>
+      `<th class="num sortable ${sortKey === k ? "sorted" : ""}" scope="col" aria-sort="${sortKey === k ? (sortDir > 0 ? "descending" : "ascending") : "none"}"><button type="button" class="sort-button" data-k="${k}">${METRICS[k].label.replace(/ \(.*\)/, "")}${sortKey === k ? (sortDir > 0 ? " ↓" : " ↑") : " ↕"}<span class="sort-unit">${METRICS[k].suf.trim()}</span></button></th>`).join("")}</tr>`;
+    const sorted = [...regions].sort((a, b) => sortKey === "name" ? a.name.localeCompare(b.name) * sortDir : (a[sortKey] == null ? (b[sortKey] == null ? 0 : 1) : b[sortKey] == null ? -1 : (b[sortKey] - a[sortKey]) * sortDir));
     const row = (r, isEs) => `<tr class="${isEs ? "es" : ""}"><td>${r.name}</td>${keys.map(k =>
       `<td class="num" style="${isEs ? "" : cellBg(k, r[k])}">${r[k] == null ? "—" : nf(r[k], METRICS[k].dec)}</td>`).join("")}</tr>`;
     tbody.innerHTML = (es ? row(es, true) : "") + sorted.map(r => row(r, false)).join("");
   };
   thead.addEventListener("click", e => {
-    const th = e.target.closest("th"); if (!th) return;
-    const k = th.dataset.k; sortDir = sortKey === k ? -sortDir : 1; sortKey = k; renderTable();
+    const button = e.target.closest("button[data-k]"); if (!button) return;
+    const k = button.dataset.k; sortDir = sortKey === k ? -sortDir : 1; sortKey = k; renderTable();
   });
   renderTable();
 
@@ -756,15 +794,14 @@ function renderTerritorio() {
   });
   const n = pts.length, mx = pts.reduce((a, p) => a + p.x, 0) / n, my = pts.reduce((a, p) => a + p.y, 0) / n;
   const r = pts.reduce((a, p) => a + (p.x - mx) * (p.y - my), 0) / Math.sqrt(pts.reduce((a, p) => a + (p.x - mx) ** 2, 0) * pts.reduce((a, p) => a + (p.y - my) ** 2, 0));
-  $("scatterNote").innerHTML = `Correlación entre comunidades: <strong>r = ${nf(r, 2)}</strong>. El empleo es el principal canal de reducción de la pobreza:
-    de ahí la importancia de que la mejora laboral llegue a las regiones del sur.`;
+  $("scatterNote").innerHTML = `Correlación entre comunidades: <strong>r = ${nf(r, 2)}</strong>. La asociación es descriptiva: compara los últimos datos disponibles, que pueden corresponder a periodos distintos, y no demuestra causalidad.`;
   ts("chSigma", [{ label: "Dispersión del paro (pp)", data: D.territorio.sigma, color: C.good, width: 2.6, fill: "origin" }], { yDec: 0, tipDec: 2, tipSuffix: " pp", y: { min: 0 } });
 }
 
 // ─── COMPARATIVA ────────────────────────────────────────────────────────────
 function renderComparativa() {
   const M = D.macro, ev = M.events, keys = Object.keys(ev);
-  $("eventPills").innerHTML = keys.map((k, i) => `<button class="pill ${i === 0 ? "on" : ""}" data-k="${k}">${ev[k].label.replace(/ \(.*\)/, "")}</button>`).join("");
+  $("eventPills").innerHTML = keys.map((k, i) => `<button type="button" class="pill ${i === 0 ? "on" : ""}" aria-pressed="${i === 0}" data-k="${k}">${ev[k].label.replace(/ \(.*\)/, "")}</button>`).join("");
   const evChart = new Chart($("chEvent"), {
     type: "line", data: { datasets: [] },
     options: { responsive: true, maintainAspectRatio: false, interaction: { mode: "nearest", axis: "x", intersect: false },
@@ -775,6 +812,7 @@ function renderComparativa() {
   });
   const drawEvent = k => {
     const e = ev[k];
+    evChart.options.scales.x.max = Math.ceil(Math.max(...e.XIV.map(p => p[0]), ...e.XV.map(p => p[0])) / 6) * 6;
     $("eventTitle").textContent = e.label;
     evChart.data.datasets = [
       { label: "XIV (desde ene 2020)", data: XY(e.XIV), borderColor: LEG_COLORS.XIV, backgroundColor: LEG_COLORS.XIV, borderWidth: 2.4, pointRadius: 2, tension: 0.25 },
@@ -785,7 +823,7 @@ function renderComparativa() {
   };
   $("eventPills").addEventListener("click", e => {
     const b = e.target.closest("button"); if (!b) return;
-    document.querySelectorAll("#eventPills .pill").forEach(x => x.classList.toggle("on", x === b));
+    document.querySelectorAll("#eventPills .pill").forEach(x => { x.classList.toggle("on", x === b); x.setAttribute("aria-pressed", String(x === b)); });
     drawEvent(b.dataset.k);
   });
   drawEvent(keys[0]);
@@ -836,26 +874,38 @@ function renderFuentes() {
     <td><a href="${s.url}" target="_blank" rel="noopener">${s.table}</a></td><td>${s.source}</td><td>${s.block}</td>
     <td style="color:var(--muted);font-size:0.82rem">${s.indicators.join(" · ")}</td><td class="num">${s.n_series}</td>
     <td style="white-space:nowrap">${FQ[s.freq] || s.freq} · ${s.first} → ${s.last}</td></tr>`).join("");
-  $("footMeta").innerHTML = `Generado el ${m.generated} · datos hasta ${dlabel(Date.parse(m.last), "M")} · regenera con <code>python run_all.py</code>.`;
+  $("footMeta").innerHTML = `Generado el ${m.generated} · datos hasta ${dlabel(Date.parse(m.last), "M")} · las cifras corresponden a la última generación del informe.`;
 }
 
 // ─── Interacción global ─────────────────────────────────────────────────────
 function wireUi() {
+  const nav = document.querySelector("nav");
+  const syncNavHeight = () => document.documentElement.style.setProperty("--nav-height", `${Math.ceil(nav.getBoundingClientRect().height) + 16}px`);
+  syncNavHeight();
+  if (typeof ResizeObserver !== "undefined") new ResizeObserver(syncNavHeight).observe(nav);
+  document.querySelectorAll("canvas:not(#heroBg):not([id^='sp_'])").forEach(canvas => {
+    const heading = canvas.closest(".panel")?.querySelector("h3");
+    canvas.setAttribute("role", "img");
+    if (!canvas.hasAttribute("aria-label")) canvas.setAttribute("aria-label", heading?.textContent || "Gráfico estadístico");
+  });
   $("rangeSeg").addEventListener("click", e => {
     const b = e.target.closest("button"); if (!b) return;
-    document.querySelectorAll("#rangeSeg button").forEach(x => x.classList.toggle("on", x === b));
+    document.querySelectorAll("#rangeSeg button").forEach(x => { x.classList.toggle("on", x === b); x.setAttribute("aria-pressed", String(x === b)); });
+    if (!(b.dataset.r in RANGES)) return;
     rangeMin = RANGES[b.dataset.r];
+    const names = {all: "enero de 2013", "2019": "enero de 2019", XIV: "enero de 2020", XV: "noviembre de 2023"};
+    $("rangeStatus").textContent = `Mostrando la evolución desde ${names[b.dataset.r]}, según los datos disponibles de cada serie.`;
     TS.forEach(applyRange);
   });
   const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); } }), { threshold: 0.04 });
   document.querySelectorAll(".reveal").forEach(el => io.observe(el));
   const links = [...document.querySelectorAll("#navLinks a")];
   const spy = new IntersectionObserver(es => es.forEach(e => {
-    if (e.isIntersecting) links.forEach(a => a.classList.toggle("active", a.getAttribute("href") === `#${e.target.id}`));
+    if (e.isIntersecting) links.forEach(a => (a.classList.toggle("active", a.getAttribute("href") === `#${e.target.id}`), a.getAttribute("href") === `#${e.target.id}` ? a.setAttribute("aria-current", "location") : a.removeAttribute("aria-current")));
   }), { rootMargin: "-45% 0px -50% 0px" });
   document.querySelectorAll("section[id]").forEach(s => spy.observe(s));
 }
 
-[renderHero, renderScorecard, renderEmpleo, renderPrecios, renderSalarios, renderGenero, renderCrecimiento,
+[renderHero, renderScorecard, renderEmpleo, renderPrecios, renderEuropa, renderSalarios, renderGenero, renderCrecimiento,
  renderVivienda, renderBienestar, renderDemografia, renderJusticia, renderTerritorio, renderComparativa, renderFuentes, wireUi]
-  .forEach(fn => { try { fn(); } catch (err) { console.error(fn.name, err); } });
+  .forEach(fn => { try { fn(); } catch (err) { console.error(fn.name, err); const status = $("loadStatus"); status.hidden = false; status.textContent = "Algunos gráficos o datos no se han podido cargar. Recarga la página para volver a intentarlo."; } });

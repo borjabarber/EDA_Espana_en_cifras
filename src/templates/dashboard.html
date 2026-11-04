@@ -3,12 +3,12 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>España en cifras · Balance de la XV Legislatura con datos del INE</title>
-<meta name="description" content="Dashboard interactivo con más de 700 series oficiales del INE: empleo, precios, salarios, brecha de género, vivienda, bienestar, demografía, justicia penal y territorio durante la XV Legislatura." />
+<title>España en cifras · INE y comparación europea Eurostat</title>
+<meta name="description" content="Dashboard con datos oficiales del INE y Eurostat: inflación armonizada de España frente a la UE y zona euro, precios acumulados, empleo, salarios, vivienda y bienestar." />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,700&display=swap" rel="stylesheet" />
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+<script>__CHART_JS__</script>
 <style>
 :root {
   --bg: #0a0d12;
@@ -27,7 +27,7 @@
   --ink: #d7e0ea;
 }
 * { box-sizing: border-box; }
-html { scroll-behavior: smooth; scroll-padding-top: 64px; }
+html { scroll-behavior: smooth; scroll-padding-top: var(--nav-height, 180px); }
 body {
   margin: 0;
   font-family: "Instrument Sans", system-ui, sans-serif;
@@ -116,8 +116,8 @@ code { font-size: 0.85em; background: rgba(255,255,255,0.06); padding: 0.1rem 0.
   background: rgba(10,13,18,0.78);
   border-bottom: 1px solid var(--line);
 }
-.nav .wrap { display: flex; align-items: center; gap: 1rem; }
-.nav-links { display: flex; gap: 1.05rem; overflow-x: auto; padding: 0.85rem 0; font-size: 0.88rem; flex: 1; scrollbar-width: none; }
+.nav .wrap { display: flex; flex-direction: column; align-items: stretch; gap: 0; }
+.nav-links { display: flex; gap: 1.05rem; overflow-x: auto; padding: 0.85rem 0; font-size: 0.88rem; flex: 1; min-width: 0; scrollbar-width: thin; }
 .nav-links::-webkit-scrollbar { display: none; }
 .nav-links a { color: var(--muted); text-decoration: none; white-space: nowrap; transition: color .2s; }
 .nav-links a:hover, .nav-links a.active { color: var(--text); }
@@ -293,13 +293,32 @@ select {
 .footnote .brand-s { font-family: "Fraunces", Georgia, serif; font-size: 1.8rem; color: var(--text); margin: 0 0 0.6rem; }
 .footnote .brand-s span { color: var(--red); }
 
-.reveal { opacity: 0; transform: translateY(24px); transition: opacity .8s ease, transform .8s ease; }
+.reveal { opacity: 1; transform: none; }
 .reveal.in { opacity: 1; transform: none; }
 @keyframes rise {
   from { opacity: 0; transform: translateY(18px); }
   to { opacity: 1; transform: translateY(0); }
 }
 @media (prefers-reduced-motion: reduce) { .reveal { opacity: 1; transform: none; } * { animation: none !important; } }
+/* Controles y tablas adaptados a pantallas pequeñas y navegación con teclado. */
+.period-control { padding: 0 0 .7rem; display: flex; flex-wrap: wrap; align-items: center; gap: .35rem .8rem; }
+.period-label { font-size: .85rem; font-weight: 600; }
+.period-control .seg { flex-wrap: wrap; border-radius: 14px; flex-shrink: 1; min-width: 0; max-width: 100%; }
+.period-control p { flex-basis: 100%; margin: 0; color: var(--muted); font-size: .76rem; line-height: 1.4; }
+.period-control #rangeStatus { color: var(--gold); }
+.grid-2 > *, .panel, .table-wrap, .chart-box { min-width: 0; }
+button:focus-visible, a:focus-visible, select:focus-visible { outline: 2px solid var(--gold); outline-offset: 4px; }
+.sort-button { color: inherit; font: inherit; background: transparent; border: 0; padding: 0; cursor: pointer; text-align: inherit; }
+.sort-button .sort-unit { display: block; font-size: .72rem; opacity: .8; }
+.chart-box canvas[role="img"] { max-width: 100%; }
+#loadStatus { color: var(--gold); }
+@media (max-width: 540px) {
+  .seg button { padding: .4rem .55rem; font-size: .75rem; }
+  .period-label { flex-basis: 100%; }
+  .nav-links { flex: auto; width: 100%; }
+  .cards { grid-template-columns: minmax(0, 1fr); }
+}
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
 </style>
 </head>
 <body>
@@ -307,25 +326,28 @@ select {
 <header class="hero">
   <div class="hero-bg"><canvas id="heroBg"></canvas></div>
   <div class="wrap" style="position:relative;z-index:1">
-    <div class="tag">INE · datos oficiales · XV Legislatura</div>
+    <div class="tag">INE + Eurostat · datos oficiales · XV Legislatura</div>
     <h1 class="brand">España<br/>en <span>cifras</span></h1>
     <p class="hero-lead">
       Balance socioeconómico de la <strong>XV Legislatura</strong> (desde la investidura del 16 de noviembre de 2023) construido
-      exclusivamente con <strong>series oficiales del Instituto Nacional de Estadística</strong>: empleo, precios, salarios,
+      con <strong>series oficiales del INE y Eurostat</strong>: empleo, precios, salarios,
       brecha de género, crecimiento, vivienda, bienestar, demografía, justicia penal y territorio.
       Hechos medibles, con su contexto y sus limitaciones — no un sondeo ni una valoración partidista.
     </p>
+    <noscript><p class="note">Activa JavaScript para consultar los gráficos, las tarjetas y las tablas. Los textos del informe se pueden leer sin JavaScript.</p></noscript>
+    <p id="loadStatus" role="status" hidden></p>
     <div class="hero-meta" id="heroMeta"></div>
     <div class="hero-stats" id="heroStats"></div>
   </div>
 </header>
 
-<nav class="nav">
+<nav class="nav" aria-label="Secciones del informe y periodo de los gráficos">
   <div class="wrap">
     <div class="nav-links" id="navLinks">
       <a href="#resumen">Resumen</a>
       <a href="#empleo">Empleo</a>
       <a href="#precios">Precios</a>
+      <a href="#europa">Europa</a>
       <a href="#salarios">Salarios</a>
       <a href="#genero">Brecha de género</a>
       <a href="#crecimiento">Crecimiento</a>
@@ -338,12 +360,16 @@ select {
       <a href="#metodologia">Metodología</a>
       <a href="#fuentes">Fuentes</a>
     </div>
-    <span class="seg-label">Periodo</span>
-    <div class="seg" id="rangeSeg">
-      <button data-r="all" class="on">2013+</button>
-      <button data-r="2019">2019+</button>
-      <button data-r="XIV">XIV + XV</button>
-      <button data-r="XV">Solo XV</button>
+    <div class="period-control">
+      <span class="period-label" id="periodLabel">Periodo de los gráficos</span>
+      <div class="seg" id="rangeSeg" role="group" aria-labelledby="periodLabel" aria-describedby="periodHelp rangeStatus">
+        <button type="button" data-r="all" class="on" aria-pressed="true">Desde 2013</button>
+        <button type="button" data-r="2019" aria-pressed="false">Desde 2019</button>
+        <button type="button" data-r="XIV" aria-pressed="false">Desde 2020</button>
+        <button type="button" data-r="XV" aria-pressed="false">Desde nov. 2023</button>
+      </div>
+      <p id="periodHelp">Recorta el eje de fechas de los gráficos de evolución. Las tarjetas, las tablas y los gráficos con base fija conservan su referencia.</p>
+      <p id="rangeStatus" role="status" aria-live="polite">Mostrando la evolución desde enero de 2013, según los datos disponibles de cada serie.</p>
     </div>
   </div>
 </nav>
@@ -352,10 +378,10 @@ select {
 <section id="resumen">
   <div class="wrap reveal">
     <div class="tag"><b>01</b>Resumen ejecutivo</div>
-    <h2>El <em>scorecard</em> de la legislatura</h2>
+    <h2>El <em>balance</em> de la legislatura</h2>
     <p class="section-lead">
-      Dieciséis indicadores clave comparados con su valor al <strong>inicio de la XV Legislatura</strong> (último dato publicado con periodo de
-      referencia anterior a la investidura). Verde = mejora según la dirección deseable del indicador (menos paro, más empleo, menos inflación…).
+      Dieciséis indicadores clave comparados con su valor al <strong>inicio de la XV Legislatura</strong> (último periodo de
+      referencia que empieza antes del 17 de noviembre de 2023; puede incluir días posteriores). Verde = mejora según la dirección deseable del indicador (menos paro, más empleo, menos inflación…).
       La línea fina muestra la evolución desde 2019; la zona roja marca la XV.
     </p>
     <div class="toolbar" id="kpiFilter"></div>
@@ -366,21 +392,21 @@ select {
         <div class="sub" style="margin:0">Indicadores que mejoran desde el inicio de la XV</div>
         <div class="n" id="scoreN"></div>
         <div class="bar-track"><div class="bar-fill" id="scoreBar"></div></div>
-        <p class="note" style="border:0;padding:0">El recuento es un resumen grueso: no todos los indicadores pesan lo mismo ni dependen solo del Gobierno.
-          Por eso, a la derecha se ponen todos en una <strong>escala común</strong>.</p>
+        <p class="note" style="border:0;padding:0">El recuento es una síntesis orientativa: no todos los indicadores pesan lo mismo ni dependen solo del Gobierno.
+          El gráfico de balance presenta los cambios en una <strong>escala común</strong>.</p>
       </div>
       <div class="panel">
         <h3>Balance en una sola escala</h3>
         <p class="sub">Cambio desde el inicio de la XV en desviaciones típicas históricas (2014+). Positivo = mejora.</p>
         <div class="chart-box"><canvas id="chBalance"></canvas></div>
-        <p class="note">Normalizar por la volatilidad permite comparar peras con manzanas: subir 1 pp el paro es mucho; subir 1 pp la energía, poco.
+        <p class="note">La escala expresa cuánto cambia cada indicador respecto a su variabilidad histórica. Así permite comparar indicadores con unidades y volatilidades distintas.
           <strong>La vivienda</strong> es, con diferencia, el indicador que más se ha deteriorado respecto a su comportamiento habitual;
           el <strong>mercado laboral</strong> y la <strong>carencia material</strong> concentran las mejoras.</p>
       </div>
     </div>
 
     <h3 style="font-family:Fraunces,Georgia,serif;font-size:1.6rem;font-weight:500;margin:2.6rem 0 1rem">Hallazgos automáticos</h3>
-    <p class="section-lead" style="margin-top:-0.6rem">Generados por código a partir de los datos (<code>src/analytics.py → insights()</code>): se reescriben solos cuando el INE publica datos nuevos.</p>
+    <p class="section-lead" style="margin-top:-0.6rem">Calculados a partir de las series del INE. Se actualizan cuando se regenera y publica este informe; la web no consulta datos en directo.</p>
     <div class="insights" id="insights"></div>
   </div>
 </section>
@@ -447,7 +473,7 @@ select {
 <section id="precios">
   <div class="wrap reveal">
     <div class="tag"><b>03</b>Precios · IPC</div>
-    <h2>Inflación: el <em>shock energético</em> vuelve en 2026</h2>
+    <h2>Inflación y <em>coste de la vida</em></h2>
     <p class="section-lead">
       El <strong>IPC</strong> mide la variación de precios de una cesta representativa. La <strong>subyacente</strong> excluye alimentos no elaborados
       y energía, los componentes más volátiles, y refleja mejor las presiones de fondo. La XV arranca con la inflación ya bajando tras el pico de 2022.
@@ -456,8 +482,7 @@ select {
       <div class="panel">
         <h3>IPC general y subyacente</h3><p class="sub">Variación anual (%) · mensual</p>
         <div class="chart-box"><canvas id="chIpc"></canvas></div>
-        <p class="note">Patrón de <strong>shock de oferta</strong>: el IPC general repunta por la energía mientras la subyacente se modera. Afecta mucho al
-          bolsillo (carburantes, electricidad) pero, de momento, no se contagia con la misma intensidad al resto de precios.</p>
+        <p class="note" id="ipcReading"></p>
       </div>
       <div class="panel">
         <h3>Componentes</h3><p class="sub">Energía, alimentos y servicios · variación anual (%)</p>
@@ -474,10 +499,56 @@ select {
         <div class="chart-box"><canvas id="chIpcCcaa"></canvas></div>
       </div>
       <div class="panel span-2">
-        <h3>Mapa de calor: inflación media anual por grupo</h3><p class="sub">Media de las tasas interanuales de cada año (%). Rojo = más inflación, azul = deflación.</p>
+        <h3>Mapa de calor: inflación media por grupo</h3><p class="sub">Media de tasas interanuales disponibles (%). * Año incompleto: no es una media anual cerrada. Rojo = más inflación, azul = deflación.</p>
         <div id="heatIpc" style="overflow-x:auto"></div>
         <p class="note">Se ve la secuencia del <strong>episodio inflacionario</strong>: primero transporte y vivienda (energía, 2021-2022), después alimentos (2022-2023) y,
           con retraso, restauración y servicios.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="europa">
+  <div class="wrap reveal">
+    <div class="tag"><b>03 bis</b>Perspectiva europea · Eurostat</div>
+    <h2>España frente a <em>Europa</em></h2>
+    <p class="section-lead">Una misma medida, un mismo mes. El <strong>IPCA armonizado</strong> permite comparar países;
+      el IPC nacional de la sección anterior tiene una cobertura distinta. Menos inflación significa que los precios
+      suben más despacio: no que vuelvan a su nivel anterior.</p>
+    <div class="mini-kpis" id="euKpis" aria-live="polite"></div>
+    <div class="callout"><h4>Qué dicen los datos</h4><p id="euReading"></p></div>
+    <div class="grid-2">
+      <div class="panel span-2">
+        <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:1rem">
+          <div><h3>Inflación comparable</h3><p class="sub">IPCA · variación interanual (%) · pulsa una leyenda para mostrar u ocultar países</p></div>
+          <label for="euMeasure">Medida <select id="euMeasure"><option value="rates">General</option><option value="core">Subyacente europea</option></select></label>
+        </div>
+        <div class="chart-box"><canvas id="chEuRates" aria-label="Inflación armonizada por país" role="img"></canvas></div>
+        <p class="note">La subyacente europea excluye energía, todos los alimentos, alcohol y tabaco; difiere de la subyacente del IPC español.
+          La referencia del 2% corresponde al objetivo del BCE para el IPCA general de la zona euro a medio plazo.</p>
+      </div>
+      <div class="panel">
+        <h3>La factura acumulada</h3><p class="sub">Índice 100 = noviembre de 2023 · calculado desde el índice oficial</p>
+        <div class="chart-box"><canvas id="chEuIndex" aria-label="Subida acumulada de precios desde noviembre de 2023" role="img"></canvas></div>
+        <p class="note">Cada país parte de 100. Compara la evolución de sus precios, no cuánto cuesta la misma cesta en euros en cada país.
+          La base mensual incluye días anteriores a la investidura y no identifica un efecto del Gobierno.</p>
+      </div>
+      <div class="panel">
+        <h3>¿Más o menos inflación que Europa?</h3><p class="sub">España menos cada agregado · puntos porcentuales</p>
+        <div class="chart-box"><canvas id="chEuGap" aria-label="Diferencial de inflación de España frente a Europa" role="img"></canvas></div>
+        <p class="note">Por encima de cero, España tiene más inflación interanual. Los agregados oficiales están ponderados;
+          no son la media simple de los cinco países mostrados. Zona euro de composición fija de 20 países.</p>
+      </div>
+      <div class="panel span-2">
+        <h3>Comparativa en el mismo mes</h3><p class="sub" id="euTableDate"></p>
+        <div class="table-wrap"><table id="tableEurope">
+          <caption style="text-align:left;padding:0.8rem;color:var(--muted)">Selección de cinco países y dos agregados; no es un ranking de toda la UE.</caption>
+          <thead><tr><th scope="col">País / área</th><th scope="col" class="num">Interanual %</th><th scope="col" class="num">Mensual %</th><th scope="col" class="num">Desde nov 2023 %</th><th scope="col" class="num">vs UE (pp)</th><th scope="col">Estado</th></tr></thead>
+          <tbody></tbody>
+        </table></div>
+        <p class="note" id="euProvenance"></p>
+        <p class="note">Marcas Eurostat: p = provisional; e = estimado; b = ruptura; d = definición diferente. Sin marca significa sin indicador especial.
+          La tabla usa el último mes con datos de los siete comparadores, sin rellenar ausencias. Las curvas muestran las observaciones disponibles.</p>
       </div>
     </div>
   </div>
@@ -507,13 +578,13 @@ select {
       <div class="panel">
         <h3>Distribución salarial</h3><p class="sub" id="distSub">Ganancia anual por percentil · índice 100 = primer año</p>
         <div class="chart-box sm"><canvas id="chDist"></canvas></div>
-        <p class="note">Los <strong>salarios bajos crecen mucho más</strong> que los altos desde 2018: es la huella de las subidas del
-          <strong>Salario Mínimo Interprofesional</strong> (de 736 € a más de 1.100 € en catorce pagas).</p>
+        <p class="note">Los <strong>salarios bajos crecen mucho más</strong> que los altos desde 2018: coincide con las subidas del
+          <strong>Salario Mínimo Interprofesional</strong>. Esta comparación descriptiva no permite aislar su efecto.</p>
       </div>
       <div class="panel">
         <h3>Desigualdad salarial: ratio P90 / P10</h3><p class="sub">Cuántas veces gana el percentil 90 lo que gana el percentil 10</p>
         <div class="chart-box sm"><canvas id="chP9010"></canvas></div>
-        <p class="note">La <strong>compresión salarial</strong> reduce la desigualdad entre asalariados. El coste: más trabajadores agrupados cerca del mínimo.</p>
+        <p class="note">Una caída del cociente P90/P10 indica menos distancia entre esos dos percentiles. Por sí sola, esta medida no permite determinar cuántos trabajadores cobran cerca del salario mínimo.</p>
       </div>
     </div>
   </div>
@@ -535,12 +606,12 @@ select {
         <h3>Tres formas de medir la brecha</h3><p class="sub">% · anual</p>
         <div class="chart-box"><canvas id="chGap"></canvas></div>
         <p class="note"><strong>Por hora</strong> la brecha se ha reducido a la mitad desde 2009. En <strong>ganancia anual</strong> sigue siendo el doble porque las
-          mujeres trabajan más a tiempo parcial: la distancia entre ambas curvas es, en sí misma, una medida del <strong>efecto de la parcialidad</strong>.</p>
+          mujeres trabajan más a tiempo parcial: la distancia entre ambas curvas también recoge diferencias de jornada y de meses trabajados; no aísla el efecto de la parcialidad.</p>
       </div>
       <div class="panel">
         <h3>Ganancia media anual por sexo</h3><p class="sub">€ por trabajador</p>
         <div class="chart-box"><canvas id="chGapSal"></canvas></div>
-        <p class="note">Ambos salarios crecen, pero el de las mujeres lo hace más deprisa, sobre todo desde 2018 (el SMI afecta proporcionalmente a más mujeres).</p>
+        <p class="note">El gráfico compara la evolución del salario medio anual de mujeres y hombres. No controla los cambios en jornada, ocupación ni composición del empleo.</p>
       </div>
       <div class="panel">
         <h3>Brecha por ocupación</h3><p class="sub" id="gapOccSub">% · ganancia media anual</p>
@@ -550,7 +621,7 @@ select {
       <div class="panel">
         <h3>Brecha por actividad económica</h3><p class="sub" id="gapActSub">% · ganancia media anual</p>
         <div class="chart-box lg"><canvas id="chGapAct"></canvas></div>
-        <p class="note">Mínima en <strong>administración pública, educación, construcción y transporte</strong>, sectores con escalas salariales regladas. Buena parte de la brecha
+        <p class="note">Mínima en <strong>administración pública, educación, construcción y transporte</strong>. Las cifras no controlan por ocupación ni jornada. La brecha
           agregada es <strong>composicional</strong>: hombres y mujeres se concentran en actividades con salarios distintos.</p>
       </div>
       <div class="panel">
@@ -563,7 +634,7 @@ select {
         <h3>Brecha en el paro y salario por hora por sector</h3><p class="sub">Paro mujeres − paro hombres (pp) · trimestral</p>
         <div class="chart-box sm"><canvas id="chGapParo"></canvas></div>
         <div class="chart-box sm mt"><canvas id="chGapSector"></canvas></div>
-        <p class="note">En <strong>construcción</strong> las mujeres (muy pocas, y en puestos técnicos o administrativos) ganan más por hora que los hombres.</p>
+        <p class="note">La comparación por sector no controla por ocupación, jornada ni antigüedad. Las diferencias observadas no equivalen a una comparación a igual puesto.</p>
       </div>
     </div>
   </div>
@@ -582,8 +653,8 @@ select {
       <div class="panel">
         <h3>PIB real</h3><p class="sub">Variación anual (barras) y trimestral (línea), %</p>
         <div class="chart-box"><canvas id="chPib"></canvas></div>
-        <p class="note">España crece en la XV muy por encima de la media de la eurozona. Combinado con la productividad estancada, el crecimiento
-          se explica sobre todo por <strong>más población, más empleo y más turismo</strong>.</p>
+        <p class="note">La variación anual compara cada trimestre con el mismo del año anterior; la trimestral lo compara con el trimestre anterior.
+          Estas series describen el crecimiento, pero no permiten atribuirlo por sí solas a una causa.</p>
       </div>
       <div class="panel">
         <h3>Nivel del PIB real</h3><p class="sub">Índice de volumen encadenado</p>
@@ -598,7 +669,7 @@ select {
       <div class="panel">
         <h3>Producción industrial y creación de empresas</h3><p class="sub">IPI var. anual (%) · sociedades constituidas (12 meses)</p>
         <div class="chart-box sm"><canvas id="chIpi"></canvas></div>
-        <p class="note">La industria va a un ritmo mucho más plano que el PIB: el ciclo lo tiran los servicios.</p>
+        <p class="note">El IPI mide la producción industrial; las sociedades constituidas miden altas de empresas, no su empleo ni su supervivencia. Usan escalas distintas.</p>
       </div>
     </div>
   </div>
@@ -631,8 +702,7 @@ select {
       <div class="panel">
         <h3>Hipotecas y tipo de interés</h3><p class="sub">Hipotecas constituidas (suma 12 meses) y tipo medio (%)</p>
         <div class="chart-box"><canvas id="chHip"></canvas></div>
-        <p class="note">La bajada de tipos desde 2024 reactiva el crédito: más demanda solvente sobre una <strong>oferta nueva muy escasa</strong>.
-          Junto con la fuerte creación de hogares, explica la aceleración de precios.</p>
+        <p class="note">El número de hipotecas y el tipo medio usan escalas distintas. Las hipotecas incluyen todas las fincas, mientras que el tipo de interés corresponde a hipotecas sobre vivienda: no son exactamente el mismo conjunto.</p>
       </div>
     </div>
   </div>
@@ -645,14 +715,14 @@ select {
     <h2>Pobreza y desigualdad: <em>mejora lenta</em></h2>
     <p class="section-lead">
       La Encuesta de Condiciones de Vida (ECV) es anual. Ojo: los <strong>ingresos se refieren al año anterior</strong> a la encuesta
-      (la ECV 2025 mide rentas de 2024). La tasa <strong>AROPE</strong> combina pobreza relativa, carencia material y baja intensidad laboral.
+      (la ECV 2025 mide rentas de 2024). La tasa <strong>AROPE</strong> combina pobreza relativa, carencia material y social severa y baja intensidad laboral.
     </p>
     <div class="grid-2">
       <div class="panel">
         <h3>Pobreza y exclusión</h3><p class="sub">% de la población</p>
         <div class="chart-box"><canvas id="chArope"></canvas></div>
         <p class="note">AROPE y pobreza relativa marcan <strong>mínimos de la serie</strong>, pero <strong>1 de cada 4 residentes</strong> sigue en riesgo de pobreza o
-          exclusión. La <strong>pobreza infantil</strong> (~34%) no mejora y es de las más altas de la UE. La carencia severa está estancada en torno al 8%.</p>
+          exclusión. La tasa AROPE de <strong>menores de 16 años</strong> se sitúa cerca del 34%. La carencia severa está estancada en torno al 8%.</p>
       </div>
       <div class="panel">
         <h3>Desigualdad de la renta</h3><p class="sub">Gini (0-100) y ratio S80/S20</p>
@@ -662,7 +732,7 @@ select {
       <div class="panel span-2">
         <h3>AROPE por comunidad autónoma</h3><p class="sub" id="aropeCcaaSub">% de la población</p>
         <div class="chart-box"><canvas id="chAropeCcaa"></canvas></div>
-        <p class="note">Una brecha territorial enorme: en el sur la tasa AROPE <strong>duplica</strong> la del norte. Ver la sección Territorio para su relación con el paro.</p>
+        <p class="note">Las tasas varían ampliamente entre comunidades. Puedes comparar la pobreza y el paro en la <a href="#territorio">sección Territorio</a>.</p>
       </div>
     </div>
   </div>
@@ -692,7 +762,7 @@ select {
       <div class="panel">
         <h3>Nacimientos</h3><p class="sub">Suma móvil de 12 meses</p>
         <div class="chart-box sm"><canvas id="chNac"></canvas></div>
-        <p class="note">Unos 320.000 nacimientos al año, un 20%+ menos que en 2016. Mínimo en 2024 y leve repunte posterior.</p>
+        <p class="note">Unos 320.000 nacimientos al año, más de un 20% menos que en 2016. Mínimo en 2024 y leve repunte posterior.</p>
       </div>
       <div class="panel">
         <h3>Saldo migratorio</h3><p class="sub">Personas · anual</p>
@@ -710,8 +780,8 @@ select {
     <h2>Condenas e inmigración: <em>lo que dicen los datos</em> (y lo que no)</h2>
     <p class="section-lead">
       Un tema muy presente en el debate público, tratado aquí con la misma regla que el resto: <strong>datos oficiales, tasas en lugar de cifras absolutas
-      y comparación homogénea</strong>. Calculamos condenados por cada 1.000 residentes adultos de cada nacionalidad y los <strong>ajustamos por edad y sexo</strong>
-      (estandarización directa), porque la población extranjera es en promedio más joven y más masculina, y la delincuencia registrada se concentra en hombres jóvenes en cualquier país.
+      y comparación homogénea</strong>. Calculamos tasas de personas condenadas por cada 1.000 residentes adultos de cada nacionalidad y las <strong>ajustamos por edad y sexo</strong>
+      (estandarización directa), porque la población extranjera es en promedio más joven y más masculina, y las tasas registradas varían según la edad y el sexo.
     </p>
     <div class="callout">
       <h4>Antes de leer los gráficos: cinco advertencias</h4>
@@ -753,7 +823,7 @@ select {
         <h3>Peso de los extranjeros por tipo de delito</h3><p class="sub" id="typesSub">% de delitos en sentencias condenatorias · línea = peso en la población adulta</p>
         <div class="chart-box lg"><canvas id="chCrTypes"></canvas></div>
         <p class="note">La sobrerrepresentación <strong>varía mucho según el delito</strong>: mayor en robos, hurtos, orden público y atentados contra la autoridad
-          (delitos ligados a la marginalidad y a la presencia policial en la calle); menor en estafas, defraudaciones o amenazas. Cifras <strong>no ajustadas</strong> por edad.</p>
+          (sin que estos datos permitan explicar sus causas); menor en estafas, defraudaciones o amenazas. Cifras <strong>no ajustadas</strong> por edad.</p>
       </div>
       <div class="panel">
         <h3>Peso en la población vs peso en las condenas</h3><p class="sub">% extranjeros sobre el total adulto y sobre el total de condenados</p>
@@ -838,12 +908,12 @@ select {
   <div class="wrap reveal">
     <div class="tag"><b>13</b>Metodología</div>
     <h2>Cómo está <em>hecho</em></h2>
-    <p class="section-lead">Todo el pipeline es reproducible: <code>python run_all.py</code> descarga las series de la API del INE, recalcula el análisis, regenera
-      este dashboard y ejecuta el notebook del EDA. Ningún dato está escrito a mano.</p>
+    <p class="section-lead">El proceso de generación descarga las series del INE y recalcula el análisis. La comparación europea utiliza una instantánea de Eurostat con fecha de descarga indicada en su tabla.
+      Los gráficos y sus cifras proceden de los datos; los textos explicativos se revisan por separado.</p>
     <div class="cards">
       <div class="card"><h4>Extracción</h4><p>API JSON Tempus3 del INE (<code>servicios.ine.es/wstempus</code>), sin clave. Un catálogo declarativo localiza cada serie dentro de su tabla por su
         nombre oficial (exacto o con expresión regular) y la normaliza a formato largo <em>tidy</em>.</p></div>
-      <div class="card"><h4>Punto de partida</h4><p>El «inicio de la XV» es el <strong>último dato cuyo periodo de referencia empieza antes de la investidura</strong> (17-11-2023): T4 2023 en las
+      <div class="card"><h4>Punto de partida</h4><p>El «inicio de la XV» es el <strong>último dato cuyo periodo de referencia empieza antes de la investidura</strong> (fecha de referencia: 17-11-2023, tras la investidura del 16): T4 2023 en las
         series trimestrales, nov 2023 en las mensuales y 2023 (o el último año disponible) en las anuales. Igual para la XIV (8-1-2020).</p></div>
       <div class="card"><h4>Escala común</h4><p>Para el balance se divide cada cambio por la desviación típica histórica de la serie (2014+) y se orienta el signo según la dirección deseable.</p></div>
       <div class="card"><h4>Salario real</h4><p>Coste salarial ETCL en media móvil de 4 trimestres, dividido por el IPC trimestral medio. Índices 100 = inicio de la XV.</p></div>
@@ -859,10 +929,11 @@ select {
     </div>
     <h3 style="font-family:Fraunces,Georgia,serif;font-size:1.6rem;font-weight:500;margin:2.4rem 0 1rem">Glosario</h3>
     <dl class="gloss">
+      <dt>pp</dt><dd>Puntos porcentuales: pasar del 10% al 12% equivale a subir 2 pp, o un 20% en términos relativos.</dd>
       <dt>EPA</dt><dd>Encuesta de Población Activa: ~65.000 hogares por trimestre. Fuente oficial del paro, el empleo y la temporalidad.</dd>
       <dt>IPC subyacente</dt><dd>IPC sin alimentos no elaborados ni productos energéticos. Mide la inflación «de fondo».</dd>
       <dt>CLU</dt><dd>Coste laboral unitario: lo que cuesta en salarios producir una unidad de PIB. Sube si los salarios crecen más que la productividad.</dd>
-      <dt>AROPE</dt><dd>At Risk Of Poverty or social Exclusion. Indicador europeo que combina pobreza relativa (renta &lt; 60% de la mediana), carencia material severa y hogares de baja intensidad laboral.</dd>
+      <dt>AROPE</dt><dd>At Risk Of Poverty or social Exclusion. Indicador europeo que combina pobreza relativa (renta &lt; 60% de la mediana), carencia material y social severa y hogares de baja intensidad laboral.</dd>
       <dt>Gini</dt><dd>Desigualdad de la renta de 0 (todos igual) a 100 (uno lo tiene todo).</dd>
       <dt>Índice de esfuerzo</dt><dd>Índice de precio de la vivienda / índice salarial, ambos 2015 = 100. Por encima de 100, comprar vivienda cuesta más salarios que en 2015.</dd>
       <dt>Curva de Beveridge</dt><dd>Relación entre paro y vacantes. Movimientos a lo largo de la curva = ciclo; desplazamientos de la curva = cambios en la eficiencia del emparejamiento.</dd>
@@ -879,7 +950,9 @@ select {
 <section id="fuentes">
   <div class="wrap reveal">
     <div class="tag"><b>14</b>Fuentes</div>
-    <h2>Todas las <em>tablas del INE</em> utilizadas</h2>
+    <h2>Fuentes oficiales y <em>trazabilidad</em></h2>
+    <p class="section-lead">Comparación europea: <a href="https://ec.europa.eu/eurostat/databrowser/view/prc_hicp_minr/default/table?lang=en" target="_blank" rel="noopener">Eurostat · IPCA mensual (prc_hicp_minr)</a>.
+      Clasificación ECOICOP v2; índice oficial 2025 = 100 y tasas mensuales e interanuales. Descarga y consultas conservadas junto al dataset procesado.</p>
     <p class="section-lead" id="sourcesLead"></p>
     <div class="table-wrap">
       <table id="tableSources">
@@ -893,7 +966,7 @@ select {
 <footer class="footnote">
   <div class="wrap">
     <p class="brand-s">España en <span>cifras</span></p>
-    <p>Proyecto de portfolio de análisis de datos. Fuente: Instituto Nacional de Estadística (INE), datos abiertos con licencia de reutilización. Cálculos y visualización propios.
+    <p>Proyecto de portfolio de análisis de datos. Fuentes: Instituto Nacional de Estadística (INE) y Eurostat. Cálculos y visualización propios.
       Los indicadores no constituyen una evaluación partidista ni predicen resultados electorales.</p>
     <p id="footMeta"></p>
   </div>

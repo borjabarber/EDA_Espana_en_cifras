@@ -604,7 +604,7 @@ def insights() -> list[dict]:
     add("genero", "La brecha salarial de género se estrecha",
         f"Por hora trabajada, las mujeres cobran un {_fmt(gh.iloc[-1])}% menos ({gh.index[-1].year}), frente al "
         f"{_fmt(gh.iloc[0])}% de {gh.index[0].year}. En ganancia anual la brecha es mayor ({_fmt(ga.iloc[-1])}%) "
-        "por la mayor parcialidad femenina.", "good" if gh.iloc[-1] < gh.iloc[0] else "bad")
+        "sin controlar diferencias de jornada ni composición del empleo.", "good" if gh.iloc[-1] < gh.iloc[0] else "bad")
 
     cr = conviction_rates()
     last_y = cr["anyo"].max()

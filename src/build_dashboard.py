@@ -271,6 +271,7 @@ def build_payload() -> dict:
         "empleo": build_empleo(), "precios": build_precios(), "salarios": build_salarios(),
         "genero": build_genero(), "justicia": build_justicia(), "demografia": build_demografia(),
         "territorio": build_territorio(), "macro": build_macro(),
+        "europe": json.loads((A.PROCESSED_DIR / "europe_dashboard.json").read_text(encoding="utf-8")),
     }
 
 
@@ -278,9 +279,13 @@ def main() -> None:
     payload = build_payload()
     data = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
     script = SCRIPT.read_text(encoding="utf-8")
-    html = TEMPLATE.read_text(encoding="utf-8").replace("__SCRIPT__", script).replace("__PAYLOAD__", data)
+    chart = (A.ROOT / "src" / "vendor" / "chart.umd.min.js").read_text(encoding="utf-8").replace("</", "<\\/")
+    html = TEMPLATE.read_text(encoding="utf-8").replace("__CHART_JS__", chart).replace("__SCRIPT__", script).replace("__PAYLOAD__", data)
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(html, encoding="utf-8")
+    vercel_out = A.ROOT / "vercel" / "index.html"
+    vercel_out.parent.mkdir(parents=True, exist_ok=True)
+    vercel_out.write_text(html, encoding="utf-8")
     print(f"Dashboard escrito en {OUT} ({OUT.stat().st_size / 1024:.0f} KB)")
 
 
